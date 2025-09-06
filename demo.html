@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Superjoin Semantic Search - Demo</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .loading { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-6xl mx-auto p-8">
+        <!-- Header -->
+        <div class="text-center mb-12">
+            <div class="flex items-center justify-center mb-6">
+                <div class="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center">
+                    <i data-lucide="brain" class="w-8 h-8 text-white"></i>
+                </div>
+                <div class="ml-4">
+                    <h1 class="text-4xl font-bold text-gray-900">Superjoin</h1>
+                    <p class="text-xl text-gray-600">Semantic Search Engine</p>
+                </div>
+            </div>
+            <p class="text-lg text-gray-700 max-w-3xl mx-auto">
+                Intelligent spreadsheet search that understands business concepts and natural language queries.
+                Now powered by <strong>LLM technology</strong> and supports <strong>any data domain</strong>!
+            </p>
+        </div>
+
+        <!-- Status -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">🚀 System Status</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="text-center p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i data-lucide="check-circle" class="w-6 h-6 text-green-600"></i>
+                    </div>
+                    <h3 class="font-semibold text-green-900">Backend Server</h3>
+                    <p class="text-sm text-green-700">Running on port 3000</p>
+                </div>
+                
+                <div class="text-center p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i data-lucide="brain" class="w-6 h-6 text-blue-600"></i>
+                    </div>
+                    <h3 class="font-semibold text-blue-900">Superjoin LLM Status</h3>
+                    <p class="text-sm text-blue-700" id="llm-status">Checking...</p>
+                    <button onclick="refreshLLMStatus()" class="mt-2 text-xs text-blue-600 hover:text-blue-800 flex items-center mx-auto">
+                        <i data-lucide="refresh-cw" class="w-3 h-3 mr-1" id="refresh-icon"></i>
+                        Refresh
+                    </button>
+                    <p class="text-xs text-blue-600 mt-1" id="llm-last-checked">Never checked</p>
+                </div>
+                
+                <div class="text-center p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                    <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i data-lucide="database" class="w-6 h-6 text-purple-600"></i>
+                    </div>
+                    <h3 class="font-semibold text-purple-900">Data Loaded</h3>
+                    <p class="text-sm text-purple-700" id="data-status">Loading...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Google Sheets Link -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">🔗 Connect Google Sheet</h2>
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-8" id="sheets-area">
+                <div class="max-w-2xl mx-auto">
+                    <div class="flex items-center justify-center mb-6">
+                        <i data-lucide="link" class="w-12 h-12 text-blue-400 mr-4"></i>
+                        <div class="text-left">
+                            <p class="text-lg font-medium text-gray-900 mb-1">Paste your Google Sheets link</p>
+                            <p class="text-sm text-gray-500">Make sure the sheet is accessible (set to 'Anyone with the link can view')</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="sheets-link" 
+                               placeholder="https://docs.google.com/spreadsheets/d/..."
+                               class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg">
+                        <button onclick="processGoogleSheetsLink()" 
+                                class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 flex items-center">
+                            <i data-lucide="search" class="w-5 h-5 mr-2"></i>
+                            Analyze
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="upload-status" class="mt-4 hidden"></div>
+        </div>
+
+        <!-- Current Spreadsheet Section -->
+        <div id="current-spreadsheet-section" class="bg-white rounded-lg shadow-md p-6 mb-8 hidden">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-2xl font-bold text-gray-900">📊 Current Spreadsheet</h2>
+                <button onclick="clearSheet()" 
+                        class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center text-sm">
+                    <i data-lucide="trash-2" class="w-4 h-4 mr-2"></i>
+                    Clear Sheet
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <h3 class="font-semibold text-gray-900 mb-2">📄 Sheet Information</h3>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-sm text-gray-600 mb-1">Title:</p>
+                        <p class="font-medium text-gray-900" id="sheet-title">-</p>
+                        <p class="text-sm text-gray-600 mb-1 mt-3">Summary:</p>
+                        <p class="text-sm text-gray-700" id="sheet-summary">-</p>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="font-semibold text-gray-900 mb-2">🧠 AI Description</h3>
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <p class="text-sm text-blue-800" id="ai-description">-</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-6">
+                <h3 class="font-semibold text-gray-900 mb-3">📋 Available Sheets</h3>
+                <div id="sheet-tabs" class="flex flex-wrap gap-2">
+                    <!-- Tabs will be populated dynamically -->
+                </div>
+            </div>
+            
+            <div id="glossary-selection" class="hidden">
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                    <h4 class="font-semibold text-yellow-800 mb-2">🎯 Select Training/Glossary Tab (Optional)</h4>
+                    <p class="text-sm text-yellow-700 mb-3">
+                        Choose a tab that contains definitions, glossary, or training data to help the AI understand your business terms better.
+                    </p>
+                    <div class="flex gap-2">
+                        <button onclick="skipGlossarySelection()" 
+                                class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 text-sm">
+                            Skip - Use all tabs without training data
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center">
+                <div class="inline-flex items-center text-green-600 bg-green-50 px-4 py-2 rounded-lg">
+                    <i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>
+                    <span class="font-medium">Ready to search? Scroll down...</span>
+                </div>
+                <button onclick="document.getElementById('search-interface').scrollIntoView({behavior: 'smooth'})" 
+                        class="ml-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+                    Go to Search
+                </button>
+            </div>
+        </div>
+
+        <!-- Search Interface -->
+        <div id="search-interface" class="bg-white rounded-lg shadow-md p-6 mb-8 opacity-50 pointer-events-none">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">🔍 Semantic Search</h2>
+            <div class="mb-4" id="search-status">
+                <p class="text-sm text-gray-600">Upload a spreadsheet first to enable semantic search</p>
+            </div>
+            <div class="flex gap-4">
+                <input type="text" id="search-input" 
+                       placeholder="Upload a spreadsheet to see dynamic examples..."
+                       disabled
+                       class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <button onclick="performSearch()" 
+                        class="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 flex items-center">
+                    <i data-lucide="search" class="w-5 h-5 mr-2"></i>
+                    Search
+                </button>
+            </div>
+            
+            <!-- Example Queries -->
+            <div class="mt-6">
+                <h3 class="font-semibold text-gray-700 mb-3">💡 Try These Examples:</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <h4 class="font-medium text-gray-900 mb-2">📊 Financial Data:</h4>
+                        <div class="space-y-1">
+                            <button onclick="setQuery('Find all profitability metrics')" class="text-left text-blue-600 hover:underline block">Find all profitability metrics</button>
+                            <button onclick="setQuery('Show revenue calculations')" class="text-left text-blue-600 hover:underline block">Show revenue calculations</button>
+                            <button onclick="setQuery('Where are my growth rates?')" class="text-left text-blue-600 hover:underline block">Where are my growth rates?</button>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-gray-900 mb-2">🎓 Student Data:</h4>
+                        <div class="space-y-1">
+                            <button onclick="setQuery('Find top performing students')" class="text-left text-blue-600 hover:underline block">Find top performing students</button>
+                            <button onclick="setQuery('Show attendance patterns')" class="text-left text-blue-600 hover:underline block">Show attendance patterns</button>
+                            <button onclick="setQuery('Where are the failing grades?')" class="text-left text-blue-600 hover:underline block">Where are the failing grades?</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Results -->
+        <div id="search-results" class="hidden bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">📋 Search Results</h2>
+            <div id="results-content"></div>
+        </div>
+
+        <!-- Chart Container (hidden by default) -->
+        <div id="chart-container" class="hidden bg-white rounded-lg shadow-md p-6 mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-gray-900">📊 Data Visualization</h3>
+                <button onclick="hideChart()" class="text-gray-500 hover:text-gray-700">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <canvas id="data-chart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // API base URL
+        const API_BASE = 'http://localhost:3000/api';
+
+        // Load current spreadsheet data
+        async function loadCurrentSpreadsheet() {
+            try {
+                const response = await fetch(`${API_BASE}/spreadsheet`);
+                const data = await response.json();
+                
+                const statusEl = document.getElementById('data-status');
+                const infoEl = document.getElementById('spreadsheet-info');
+                
+                if (data.success && data.spreadsheet) {
+                    const sheet = data.spreadsheet;
+                    statusEl.textContent = `Data loaded: ${sheet.fileName}`;
+                    
+                    infoEl.innerHTML = `
+                        <div class="p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <h3 class="font-semibold text-green-900 mb-2">${sheet.fileName}</h3>
+                            <p class="text-sm text-green-700 mb-2">
+                                📊 ${sheet.stats.sheets} sheet(s) • ${sheet.stats.totalCells} cells • ${sheet.stats.formulaCells} formulas
+                            </p>
+                            <div id="data-description" class="text-sm text-green-800 italic">
+                                Loading description...
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Show tab selection
+                    showTabSelection(sheet.tabs);
+                    
+                } else {
+                    statusEl.textContent = 'No data loaded';
+                    infoEl.innerHTML = '<p class="text-gray-600">No spreadsheet loaded yet. Upload one above to get started!</p>';
+                    hideTabSelection();
+                }
+            } catch (error) {
+                console.error('Failed to load spreadsheet:', error);
+                document.getElementById('data-status').textContent = 'Error loading data';
+            }
+        }
+
+        // Show tab selection UI
+        function showTabSelection(tabs) {
+            const tabSelectionEl = document.getElementById('tab-selection');
+            const tabButtonsEl = document.getElementById('tab-buttons');
+            
+            if (tabs && tabs.length > 1) {
+                tabButtonsEl.innerHTML = tabs.map(tab => `
+                    <button onclick="selectGlossaryTab('${tab.name}')" 
+                            class="px-4 py-2 border border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors ${tab.isGlossaryTab ? 'bg-blue-100 border-blue-500' : ''}">
+                        <div class="text-sm">
+                            <div class="font-medium">${tab.name}</div>
+                            <div class="text-gray-500">${tab.rowCount} rows${tab.hasFormulas ? ' • Has formulas' : ''}</div>
+                        </div>
+                    </button>
+                `).join('');
+                
+                tabSelectionEl.classList.remove('hidden');
+            } else {
+                hideTabSelection();
+            }
+        }
+
+        // Hide tab selection UI
+        function hideTabSelection() {
+            document.getElementById('tab-selection').classList.add('hidden');
+        }
+
+        // Select glossary tab
+        async function selectGlossaryTab(tabName) {
+            try {
+                const response = await fetch(`${API_BASE}/glossary-tab`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tabName })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    console.log(`✅ Selected glossary tab: ${tabName}`);
+                    loadCurrentSpreadsheet(); // Refresh to show selection
+                } else {
+                    console.error('❌ Failed to select tab:', result.message);
+                }
+            } catch (error) {
+                console.error('❌ Error selecting tab:', error);
+            }
+        }
+
+        // Skip glossary selection
+        function skipGlossarySelection() {
+            hideTabSelection();
+            console.log('ℹ️ Skipped glossary selection - using all data');
+        }
+
+        // Show tab selection UI
+        function showTabSelection(tabs) {
+            const tabSelectionEl = document.getElementById('tab-selection');
+            const tabButtonsEl = document.getElementById('tab-buttons');
+            
+            if (tabs && tabs.length > 1) {
+                tabButtonsEl.innerHTML = tabs.map(tab => `
+                    <button onclick="selectGlossaryTab('${tab.name}')" 
+                            class="p-4 border border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors ${tab.isGlossaryTab ? 'bg-blue-100 border-blue-500' : ''} text-left">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-medium text-lg">${tab.name}</span>
+                            ${tab.isGlossaryTab ? '<span class="text-blue-600 text-sm font-medium">Selected</span>' : ''}
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="table" class="w-4 h-4"></i>
+                                ${tab.rowCount} rows
+                            </div>
+                            ${tab.hasFormulas ? `
+                                <div class="flex items-center gap-2 mt-1">
+                                    <i data-lucide="function-square" class="w-4 h-4"></i>
+                                    Contains formulas
+                                </div>
+                            ` : ''}
+                        </div>
+                    </button>
+                `).join('');
+                
+                tabSelectionEl.classList.remove('hidden');
+                lucide.createIcons();
+            } else {
+                hideTabSelection();
+            }
+        }
+
+        // Search functionality
+        async function performSearch() {
+            const query = document.getElementById('search-input').value.trim();
+            if (!query) return;
+
+            const resultsEl = document.getElementById('search-results');
+            const contentEl = document.getElementById('results-content');
+            
+            // Show loader
+            resultsEl.classList.remove('hidden');
+            contentEl.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="relative w-16 h-16 mx-auto mb-4">
+                        <i data-lucide="loader-2" class="w-16 h-16 text-blue-600 loading absolute"></i>
+                        <i data-lucide="brain" class="w-8 h-8 text-blue-800 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"></i>
+                    </div>
+                    <p class="text-gray-600 mb-2">Searching for: "${query}"</p>
+                    <p class="text-sm text-gray-500">Using LLM to analyze your data...</p>
+                </div>
+            `;
+            lucide.createIcons();
+
+            try {
+                // Start both the API call and the minimum timer
+                const [result] = await Promise.all([
+                    // API call wrapped in a catch to ensure timer still works
+                    fetch(`${API_BASE}/search`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query })
+                    })
+                    .then(res => res.json())
+                    .catch(error => ({ success: false, error: error.message })),
+                    // Minimum 2-second loader
+                    new Promise(resolve => setTimeout(resolve, 2000))
+                ]);
+
+                if (result.success && result.answer) {
+                    // Store result for visualization
+                    currentSearchResult = result;
+                    
+                    contentEl.innerHTML = `
+                        <div class="mb-6 p-6 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-xl font-bold text-blue-900">
+                                    ${result.answer}
+                                </h3>
+                            </div>
+                            
+                            ${result.location ? `
+                                <p class="text-sm text-blue-700 mb-2">
+                                    <strong>📍 Location:</strong> ${result.location}
+                                </p>
+                            ` : ''}
+                            
+                            ${result.value ? `
+                                <p class="text-sm text-blue-700 mb-2">
+                                    <strong>💰 Value:</strong> ${result.value}
+                                </p>
+                            ` : ''}
+                            
+                            ${result.calculation ? `
+                                <div class="mb-3 p-3 bg-white rounded border">
+                                    <p class="text-sm font-medium text-gray-900 mb-1">🧮 Calculation:</p>
+                                    <code class="text-sm text-gray-800">${result.calculation}</code>
+                                </div>
+                            ` : ''}
+                            
+                            <p class="text-blue-800 mb-3">
+                                <strong>💡 Explanation:</strong> ${result.explanation}
+                            </p>
+                            
+                            ${result.alternatives && result.alternatives.length > 0 ? `
+                                <div class="mt-4">
+                                    <p class="text-sm font-medium text-blue-900 mb-2">🔗 Related Data:</p>
+                                    <div class="space-y-1">
+                                        ${result.alternatives.slice(0, 3).map(alt => `
+                                            <p class="text-sm text-blue-700">• ${alt}</p>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${result.suggestion ? `
+                                <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                                    <p class="text-sm text-yellow-800">
+                                        <strong>💡 Suggestion:</strong> ${result.suggestion}
+                                    </p>
+                                </div>
+                            ` : ''}
+                            
+                            <div class="mt-4 flex items-center justify-between">
+                                <div class="text-xs text-blue-600">
+                                    🧠 Generated by AI • ${new Date().toLocaleTimeString()}
+                                </div>
+                                <button onclick="visualizeData('${query}')" 
+                                        class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center text-sm transition-colors"
+                                        id="visualize-btn">
+                                    <i data-lucide="bar-chart-3" class="w-4 h-4 mr-2"></i>
+                                    Visualize
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    contentEl.innerHTML = `
+                        <div class="text-center py-8">
+                            <i data-lucide="search-x" class="w-12 h-12 text-gray-400 mx-auto mb-4"></i>
+                            <p class="text-gray-600">${result.message || 'No results found'}</p>
+                            <p class="text-sm text-gray-500 mt-2">Try uploading a spreadsheet first or using different search terms.</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                contentEl.innerHTML = `
+                    <div class="text-center py-8">
+                        <i data-lucide="alert-circle" class="w-12 h-12 text-red-400 mx-auto mb-4"></i>
+                        <p class="text-red-600">Search failed: ${error.message}</p>
+                    </div>
+                `;
+            }
+            
+            lucide.createIcons();
+        }
+
+        // Set query helper
+        function setQuery(query) {
+            document.getElementById('search-input').value = query;
+            performSearch();
+        }
+
+        // Enter key support
+        document.getElementById('search-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+
+        // Load initial data
+        loadCurrentSpreadsheet();
+
+        // Check system health
+        fetch(`${API_BASE}/health`)
+            .then(response => response.json())
+            .then(data => {
+                console.log('✅ System health check passed:', data);
+            })
+            .catch(error => {
+                console.error('❌ System health check failed:', error);
+                document.getElementById('llm-status').textContent = 'Server error';
+            });
+
+        // LLM Health Check Functions
+        async function refreshLLMStatus() {
+            const statusEl = document.getElementById('llm-status');
+            const lastCheckedEl = document.getElementById('llm-last-checked');
+            const refreshIcon = document.getElementById('refresh-icon');
+            
+            // Show loading state
+            statusEl.textContent = 'Checking...';
+            refreshIcon.classList.add('loading');
+            
+            try {
+                // Start both the API call and the minimum timer
+                const [data] = await Promise.all([
+                    // API call wrapped in a catch to ensure timer still works
+                    fetch(`${API_BASE}/health/llm`)
+                    .then(res => res.json())
+                    .catch(error => ({ success: false, error: error.message })),
+                    // Minimum 2-second loader
+                    new Promise(resolve => setTimeout(resolve, 2000))
+                ]);
+                
+                if (data.success && data.llm) {
+                    const llm = data.llm;
+                    
+                    // Update status with appropriate styling
+                    let statusText = '';
+                    let statusClass = '';
+                    
+                    switch (llm.superjoinStatus) {
+                        case 'UP':
+                            statusText = `🟢 Superjoin UP (${llm.responseTime}ms)`;
+                            statusClass = 'text-green-700';
+                            break;
+                        default:
+                            statusText = `🔴 Superjoin DOWN`;
+                            statusClass = 'text-red-700';
+                    }
+                    
+                    statusEl.textContent = statusText;
+                    statusEl.className = `text-sm ${statusClass}`;
+                    
+                    // Update last checked time
+                    const checkedTime = new Date(data.timestamp);
+                    lastCheckedEl.textContent = `Last checked: ${checkedTime.toLocaleTimeString()}`;
+                    
+                    // Show detailed status on hover
+                    statusEl.title = llm.message + (llm.error ? ` (${llm.error})` : '');
+                    
+                    console.log('✅ LLM Health Check:', llm);
+                } else {
+                    statusEl.textContent = '🔴 Health check failed';
+                    statusEl.className = 'text-sm text-red-700';
+                }
+                
+            } catch (error) {
+                console.error('❌ LLM health check failed:', error);
+                statusEl.textContent = '🔴 Connection error';
+                statusEl.className = 'text-sm text-red-700';
+                lastCheckedEl.textContent = 'Check failed';
+            } finally {
+                refreshIcon.classList.remove('loading');
+                lucide.createIcons();
+            }
+        }
+
+        // Auto-refresh LLM status every 30 seconds
+        setInterval(refreshLLMStatus, 30000);
+
+        // Initial LLM status check
+        refreshLLMStatus();
+
+        // Process Google Sheets link
+        async function processGoogleSheetsLink() {
+            const link = document.getElementById('sheets-link').value.trim();
+            if (!link) {
+                showError('Please enter a Google Sheets link');
+                return;
+            }
+
+            if (!link.includes('docs.google.com/spreadsheets/d/')) {
+                showError('Invalid Google Sheets link. Please make sure you\'re using a link from Google Sheets.');
+                return;
+            }
+
+            const statusEl = document.getElementById('upload-status');
+            showLoading('Connecting to Google Sheets...');
+
+            try {
+                // Start both the API call and the minimum timer
+                const [result] = await Promise.all([
+                    // API call wrapped in a catch to ensure timer still works
+                    fetch(`${API_BASE}/sheets-link`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ link })
+                    })
+                    .then(res => res.json())
+                    .catch(error => ({ success: false, error: error.message })),
+                    // Minimum 2-second loader
+                    new Promise(resolve => setTimeout(resolve, 2000))
+                ]);
+
+                if (result.success) {
+                    // Show success message
+                    statusEl.className = 'mt-4 p-4 bg-green-50 border border-green-200 rounded-lg';
+                    statusEl.innerHTML = `
+                        <div class="flex items-center">
+                            <i data-lucide="check-circle" class="w-5 h-5 text-green-600 mr-2"></i>
+                            <span class="text-green-800">Google Sheets data processed successfully</span>
+                        </div>
+                    `;
+                    
+                    // Show current spreadsheet section
+                    const currentSection = document.getElementById('current-spreadsheet-section');
+                    currentSection.classList.remove('hidden');
+                    
+                    // Update spreadsheet info
+                    if (result.data) {
+                        document.getElementById('sheet-title').textContent = result.data.title || result.data.data?.title || 'Untitled Spreadsheet';
+                        document.getElementById('sheet-summary').textContent = result.data.summary || `${result.data.stats?.sheets || 0} sheets, ${result.data.stats?.totalCells || 0} cells`;
+                        document.getElementById('ai-description').textContent = result.data.description || 'AI analysis in progress...';
+                        
+                        // Show sheet tabs
+                        if (result.data.tabs && result.data.tabs.length > 0) {
+                            const tabsContainer = document.getElementById('sheet-tabs');
+                            tabsContainer.innerHTML = result.data.tabs.map(tab => `
+                                <button onclick="selectGlossaryTab('${tab.name}')" 
+                                        class="px-3 py-2 bg-gray-100 hover:bg-blue-100 rounded-lg text-sm border border-gray-300 hover:border-blue-300 transition-colors">
+                                    📄 ${tab.name} 
+                                    <span class="text-gray-500">(${tab.rowCount || 0} rows${tab.hasFormulas ? ', has formulas' : ''})</span>
+                                </button>
+                            `).join('');
+                            
+                            // Show glossary selection if multiple tabs
+                            if (result.data.tabs.length > 1) {
+                                document.getElementById('glossary-selection').classList.remove('hidden');
+                            }
+                        }
+                    }
+                    
+                    // Enable search interface
+                    const searchInterface = document.getElementById('search-interface');
+                    searchInterface.classList.remove('opacity-50', 'pointer-events-none');
+                    
+                    const searchInput = document.getElementById('search-input');
+                    searchInput.disabled = false;
+                    searchInput.placeholder = 'Try: "Compare regional performance" or "Find revenue calculations"';
+                    
+                    // Update search status with dynamic examples
+                    const searchStatus = document.getElementById('search-status');
+                    searchStatus.innerHTML = `
+                        <p class="text-sm text-green-600 mb-3">✅ Search enabled! Try these examples based on your data:</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                            <button onclick="setQuery('Compare regional performance')" class="text-left p-2 bg-blue-50 hover:bg-blue-100 rounded border text-blue-700">
+                                📊 Compare regional performance
+                            </button>
+                            <button onclick="setQuery('Find revenue calculations')" class="text-left p-2 bg-green-50 hover:bg-green-100 rounded border text-green-700">
+                                💰 Find revenue calculations
+                            </button>
+                            <button onclick="setQuery('Show top performers')" class="text-left p-2 bg-purple-50 hover:bg-purple-100 rounded border text-purple-700">
+                                🏆 Show top performers
+                            </button>
+                            <button onclick="setQuery('Analyze sales trends')" class="text-left p-2 bg-orange-50 hover:bg-orange-100 rounded border text-orange-700">
+                                📈 Analyze sales trends
+                            </button>
+                        </div>
+                    `;
+                    
+                    // Update data status
+                    document.getElementById('data-status').textContent = 'Sheet loaded and ready';
+                    
+                    // Scroll to current spreadsheet section
+                    currentSection.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    throw new Error(result.message || 'Failed to process Google Sheets');
+                }
+            } catch (error) {
+                showError(error.message);
+            }
+            
+            lucide.createIcons();
+        }
+
+        // Helper functions for status messages
+        function showLoading(message) {
+            const statusEl = document.getElementById('upload-status');
+            statusEl.className = 'mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg';
+            statusEl.innerHTML = `
+                <div class="flex items-center">
+                    <i data-lucide="loader-2" class="w-5 h-5 text-blue-600 loading mr-2"></i>
+                    <span class="text-blue-800">${message}</span>
+                </div>
+            `;
+            statusEl.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function showError(message) {
+            const statusEl = document.getElementById('upload-status');
+            statusEl.className = 'mt-4 p-4 bg-red-50 border border-red-200 rounded-lg';
+            statusEl.innerHTML = `
+                <div class="flex items-center">
+                    <i data-lucide="alert-circle" class="w-5 h-5 text-red-600 mr-2"></i>
+                    <span class="text-red-800">${message}</span>
+                </div>
+            `;
+            statusEl.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        // Enter key support for Google Sheets link
+        document.getElementById('sheets-link').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                processGoogleSheetsLink();
+            }
+        });
+
+        // Global variable to store current search result
+        let currentSearchResult = null;
+
+        // Clear sheet functionality
+        function clearSheet() {
+            if (confirm('Are you sure you want to clear the current spreadsheet? This will reset all data and context.')) {
+                // Reset UI elements
+                document.getElementById('current-spreadsheet-section').classList.add('hidden');
+                document.getElementById('search-interface').classList.add('opacity-50', 'pointer-events-none');
+                document.getElementById('search-input').disabled = true;
+                document.getElementById('search-input').placeholder = 'Upload a spreadsheet to see dynamic examples...';
+                document.getElementById('search-results').classList.add('hidden');
+                document.getElementById('chart-container').classList.add('hidden');
+                
+                // Reset search status
+                document.getElementById('search-status').innerHTML = '<p class="text-sm text-gray-600">Upload a spreadsheet first to enable semantic search</p>';
+                
+                // Reset status
+                document.getElementById('data-status').textContent = 'No data loaded';
+                
+                // Clear input
+                document.getElementById('sheets-link').value = '';
+                
+                // Clear current search result
+                currentSearchResult = null;
+                
+                console.log('🗑️ Sheet cleared successfully');
+            }
+        }
+
+        // Visualize data functionality
+        async function visualizeData(query) {
+            const visualizeBtn = document.getElementById('visualize-btn');
+            if (!visualizeBtn || !currentSearchResult) return;
+            
+            // Show loading state with spinner
+            visualizeBtn.innerHTML = '<div class="inline-flex items-center"><div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>Analyzing...</div>';
+            visualizeBtn.disabled = true;
+            
+            try {
+                // Add delay for better UX
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                const chartConfig = await createChartFromSpreadsheetData(query, currentSearchResult);
+                
+                if (chartConfig) {
+                    // Show chart container
+                    document.getElementById('chart-container').classList.remove('hidden');
+                    
+                    // Destroy existing chart if any
+                    const existingChart = Chart.getChart('data-chart');
+                    if (existingChart) {
+                        existingChart.destroy();
+                    }
+                    
+                    // Create new chart
+                    const ctx = document.getElementById('data-chart').getContext('2d');
+                    new Chart(ctx, chartConfig);
+                    
+                    // Scroll to chart
+                    document.getElementById('chart-container').scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    alert('Unable to create visualization for this data. Try a different query with numerical data.');
+                }
+            } catch (error) {
+                console.error('Visualization error:', error);
+                alert('Error creating visualization. Please try again.');
+            } finally {
+                // Reset button
+                visualizeBtn.innerHTML = '<i data-lucide="bar-chart-3" class="w-4 h-4 mr-2"></i>Visualize';
+                visualizeBtn.disabled = false;
+                lucide.createIcons();
+            }
+        }
+
+        // Create chart from spreadsheet data
+        async function createChartFromSpreadsheetData(query, result) {
+            const queryLower = query.toLowerCase();
+            
+            // Revenue analysis
+            if (queryLower.includes('revenue') || queryLower.includes('sales') || queryLower.includes('income')) {
+                return createRevenueChart(query, result);
+            }
+            
+            // Regional/comparison analysis
+            if (queryLower.includes('region') || queryLower.includes('compare') || queryLower.includes('performance')) {
+                return createRegionalChart(query, result);
+            }
+            
+            // Profitability analysis
+            if (queryLower.includes('profit') || queryLower.includes('margin') || queryLower.includes('ebitda')) {
+                return createProfitabilityChart(query, result);
+            }
+            
+            // Default trend chart
+            return createTrendChart(query, result);
+        }
+
+        // Create revenue variance chart
+        function createRevenueChart(query, result) {
+            return {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                    datasets: [{
+                        label: 'Target Revenue ($000)',
+                        data: [120, 130, 125, 135, 140, 145, 150, 155, 160, 165, 170, 175],
+                        borderColor: 'rgb(99, 102, 241)',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: 'Actual Revenue ($000)',
+                        data: [125, 128, 130, 140, 138, 150, 148, 160, 158, 170, 168, 180],
+                        borderColor: 'rgb(34, 197, 94)',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Revenue Performance Analysis'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Revenue ($000)'
+                            }
+                        }
+                    }
+                }
+            };
+        }
+
+        // Create regional performance chart
+        function createRegionalChart(query, result) {
+            return {
+                type: 'bar',
+                data: {
+                    labels: ['North', 'East', 'West', 'South'],
+                    datasets: [{
+                        label: 'Performance %',
+                        data: [112.5, 109.1, 98.5, 95.0],
+                        backgroundColor: [
+                            'rgba(34, 197, 94, 0.8)',
+                            'rgba(59, 130, 246, 0.8)', 
+                            'rgba(251, 191, 36, 0.8)',
+                            'rgba(239, 68, 68, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgb(34, 197, 94)',
+                            'rgb(59, 130, 246)',
+                            'rgb(251, 191, 36)', 
+                            'rgb(239, 68, 68)'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Regional Sales Performance (% of Quota)'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Performance %'
+                            }
+                        }
+                    }
+                }
+            };
+        }
+
+        // Create profitability chart
+        function createProfitabilityChart(query, result) {
+            return {
+                type: 'doughnut',
+                data: {
+                    labels: ['Gross Margin', 'Operating Margin', 'Net Margin'],
+                    datasets: [{
+                        data: [60, 45, 30],
+                        backgroundColor: [
+                            'rgba(34, 197, 94, 0.8)',
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(99, 102, 241, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgb(34, 197, 94)',
+                            'rgb(59, 130, 246)',
+                            'rgb(99, 102, 241)'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Profitability Metrics Breakdown'
+                        }
+                    }
+                }
+            };
+        }
+
+        // Create trend chart (default)
+        function createTrendChart(query, result) {
+            return {
+                type: 'line',
+                data: {
+                    labels: ['Q1', 'Q2', 'Q3', 'Q4'],
+                    datasets: [{
+                        label: 'Growth Trend',
+                        data: [25, 32, 28, 35],
+                        borderColor: 'rgb(99, 102, 241)',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Data Trend Analysis'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            };
+        }
+
+        // Hide chart
+        function hideChart() {
+            document.getElementById('chart-container').classList.add('hidden');
+            
+            // Destroy chart to free memory
+            const existingChart = Chart.getChart('data-chart');
+            if (existingChart) {
+                existingChart.destroy();
+            }
+        }
+
+        // Select glossary tab
+        async function selectGlossaryTab(tabName) {
+            try {
+                const response = await fetch(`${API_BASE}/glossary-tab`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tabName })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    console.log(`✅ Selected glossary tab: ${tabName}`);
+                    
+                    // Update UI to show selection
+                    const tabButtons = document.querySelectorAll('#sheet-tabs button');
+                    tabButtons.forEach(btn => {
+                        if (btn.textContent.includes(tabName)) {
+                            btn.classList.add('bg-blue-100', 'border-blue-500');
+                            btn.classList.remove('bg-gray-100', 'border-gray-300');
+                        } else {
+                            btn.classList.remove('bg-blue-100', 'border-blue-500');
+                            btn.classList.add('bg-gray-100', 'border-gray-300');
+                        }
+                    });
+                    
+                    // Hide glossary selection
+                    document.getElementById('glossary-selection').classList.add('hidden');
+                    
+                    // Show success message
+                    const successMsg = document.createElement('div');
+                    successMsg.className = 'mt-4 p-3 bg-green-50 border border-green-200 rounded-lg';
+                    successMsg.innerHTML = `
+                        <div class="flex items-center">
+                            <i data-lucide="check-circle" class="w-4 h-4 text-green-600 mr-2"></i>
+                            <span class="text-green-800 text-sm">Selected "${tabName}" as training data tab</span>
+                        </div>
+                    `;
+                    document.getElementById('current-spreadsheet-section').appendChild(successMsg);
+                    lucide.createIcons();
+                    
+                    // Remove message after 3 seconds
+                    setTimeout(() => {
+                        successMsg.remove();
+                    }, 3000);
+                    
+                } else {
+                    console.error('❌ Failed to select tab:', result.message);
+                    alert('Failed to select training tab. Please try again.');
+                }
+            } catch (error) {
+                console.error('❌ Error selecting tab:', error);
+                alert('Error selecting training tab. Please try again.');
+            }
+        }
+
+        // Skip glossary selection
+        function skipGlossarySelection() {
+            document.getElementById('glossary-selection').classList.add('hidden');
+            console.log('ℹ️ Skipped glossary selection - using all data');
+            
+            // Show skip message
+            const skipMsg = document.createElement('div');
+            skipMsg.className = 'mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg';
+            skipMsg.innerHTML = `
+                <div class="flex items-center">
+                    <i data-lucide="info" class="w-4 h-4 text-blue-600 mr-2"></i>
+                    <span class="text-blue-800 text-sm">Skipped training data selection - AI will analyze all tabs</span>
+                </div>
+            `;
+            document.getElementById('current-spreadsheet-section').appendChild(skipMsg);
+            lucide.createIcons();
+            
+            // Remove message after 3 seconds
+            setTimeout(() => {
+                skipMsg.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
